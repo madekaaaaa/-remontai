@@ -5,7 +5,7 @@ from PIL import Image
 
 st.set_page_config(page_title="RemontAI", page_icon="🏠", layout="wide")
 CAT = pd.read_csv("catalog.csv").fillna("")
-MODEL = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
+MODELS = [os.getenv("GEMINI_MODEL", "gemini-3.8-flash"), "gemini-3.7-flash"]
 WORKS = {"walls_paint": "Покраска стен", "walls_wallpaper": "Поклейка обоев",
          "floor_laminate": "Укладка ламината", "ceiling_paint": "Покраска потолка",
          "plinth": "Монтаж плинтуса"}
@@ -23,7 +23,13 @@ def get_client():
     return genai.Client(api_key=get_key())
 
 def gemini(contents):
-    return get_client().models.generate_content(model=MODEL, contents=contents).text
+    err = None
+    for m in MODELS:  # если первая модель недоступна или перегружена, пробуем запасную
+        try:
+            return get_client().models.generate_content(model=m, contents=contents).text
+        except Exception as e:
+            err = e
+    raise err
 
 def analyze(img, room, style):
     p = (f"Ты опытный прораб в Алматы. По фото комнаты ({room}, желаемый стиль: {style}) оцени состояние поверхностей. "
