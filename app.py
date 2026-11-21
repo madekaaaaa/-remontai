@@ -21,15 +21,18 @@ def get_key():
 def get_client():
     from google import genai
     from google.genai import types
-    return genai.Client(api_key=get_key(), http_options=types.HttpOptions(timeout=40000))  # 40 секунд
+    return genai.Client(api_key=get_key(), http_options=types.HttpOptions(timeout=30000))  # 30 секунд
 
 def gemini(contents):
+    import time
     err = None
-    for m in MODELS:  # если первая модель недоступна или перегружена, пробуем запасную
-        try:
-            return get_client().models.generate_content(model=m, contents=contents).text
-        except Exception as e:
-            err = e
+    for attempt in range(3):  # до 3 кругов: при перегрузке (503/429) ждём и пробуем снова
+        for m in MODELS:
+            try:
+                return get_client().models.generate_content(model=m, contents=contents).text
+            except Exception as e:
+                err = e
+        time.sleep(3 * (attempt + 1))
     raise err
 
 def analyze(img, room, style):
