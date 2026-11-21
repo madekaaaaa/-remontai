@@ -26,14 +26,25 @@ def get_client():
 def gemini(contents):
     import time
     err = None
-    for attempt in range(3):  # до 3 кругов: при перегрузке (503/429) ждём и пробуем снова
+    for attempt in range(2):
+        busy = False
         for m in MODELS:
             try:
                 return get_client().models.generate_content(model=m, contents=contents).text
             except Exception as e:
                 err = e
-        time.sleep(3 * (attempt + 1))
+                t = str(e)
+                if "429" in t or "RESOURCE_EXHAUSTED" in t:
+                    continue  # дневной лимит этой модели исчерпан: сразу пробуем другую
+                busy = busy or "503" in t or "UNAVAILABLE" in t
+        if not busy:
+            break
+        time.sleep(4)  # перегрузка Google: одна короткая повторная попытка
     raise err
+
+@st.cache_data(show_spinner=False)
+def analyze_cached(b, room, style):
+    return analyze(Image.open(io.BytesIO(b)).convert("RGB"), room, style)
 
 def analyze(img, room, style):
     p = (f"Ты опытный прораб в Алматы. По фото комнаты ({room}, желаемый стиль: {style}) оцени состояние поверхностей. "
@@ -108,7 +119,7 @@ with tab1:
             st.error("Не задан GEMINI_API_KEY. Можно выбрать работы вручную ниже.")
         else:
             with st.spinner("ИИ анализирует фото..."):
-                try: st.session_state.ai = analyze(img, room, style)
+                try: st.session_state.ai = analyze_cached(up.getvalue(), room, style)
                 except Exception as e: st.error(f"Ошибка ИИ: {e}")
     ai = st.session_state.get("ai")
     if ai:
