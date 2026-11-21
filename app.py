@@ -17,9 +17,13 @@ def get_key():
     except Exception:
         return None
 
-def gemini(contents):
+@st.cache_resource
+def get_client():
     from google import genai
-    return genai.Client(api_key=get_key()).models.generate_content(model=MODEL, contents=contents).text
+    return genai.Client(api_key=get_key())
+
+def gemini(contents):
+    return get_client().models.generate_content(model=MODEL, contents=contents).text
 
 def analyze(img, room, style):
     p = (f"Ты опытный прораб в Алматы. По фото комнаты ({room}, желаемый стиль: {style}) оцени состояние поверхностей. "
