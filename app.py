@@ -20,7 +20,8 @@ def get_key():
 @st.cache_resource
 def get_client():
     from google import genai
-    return genai.Client(api_key=get_key())
+    from google.genai import types
+    return genai.Client(api_key=get_key(), http_options=types.HttpOptions(timeout=40000))  # 40 секунд
 
 def gemini(contents):
     err = None
@@ -35,6 +36,7 @@ def analyze(img, room, style):
     p = (f"Ты опытный прораб в Алматы. По фото комнаты ({room}, желаемый стиль: {style}) оцени состояние поверхностей. "
          'Верни ТОЛЬКО JSON: {"walls":"кратко","floor":"кратко","ceiling":"кратко","works":[...],"reason":"1-2 предложения"}. '
          f"Поле works только из списка {list(WORKS)}; выбирай лишь то, что реально нужно по фото.")
+    img = img.copy(); img.thumbnail((1024, 1024))  # уменьшаем фото: быстрее и дешевле
     t = gemini([p, img]).strip().removeprefix("```json").removeprefix("```").removesuffix("```").strip()
     return json.loads(t)
 
